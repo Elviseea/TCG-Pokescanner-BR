@@ -1,0 +1,21 @@
+# Dependências Node.js
+node_modules/
+npm-debug.log*
+
+# Dados pessoais da coleção e backups
+data/collection.json
+data/collection.*.json
+
+# Cache offline de cartas, imagens, catálogo e sessões
+data/images/
+data/sets/
+data/sessions/
+data/catalog.json
+data/*.backup.json
+data/*.tmp
+*.tmp
+
+# Arquivos de sistema operacional
+.DS_Store
+Thumbs.db
+desktop.ini

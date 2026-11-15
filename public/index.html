@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PokéScanner BR — Consulta Rápida TCGdex + LigaPokémon</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css?v=5" />
+</head>
+<body>
+  <!-- TOP HEADER -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="pokeball-icon"></div>
+      <div>
+        <h1>PokéScanner <span class="badge-br">BR</span></h1>
+        <p class="subtitle">TCGdex HD + Preços LigaPokémon (R$)</p>
+      </div>
+    </div>
+
+    <!-- ACTIVE SET SELECTOR -->
+    <div class="set-selector-bar">
+      <span class="set-label">COLEÇÃO ATIVA:</span>
+      <button type="button" class="custom-set-picker" id="setPickerTrigger" aria-label="Selecionar coleção ou edição">
+        <img id="activeSetSymbol" src="" alt="" class="set-symbol hidden" />
+        <span id="activeSetName">Carregando coleções...</span>
+        <span id="activeSetBadge" class="status-pill">...</span>
+        <span class="chevron" aria-hidden="true">▼</span>
+      </button>
+
+      <button id="btnSyncPrices" class="btn btn-secondary" title="Atualizar preços em R$ desta coleção na LigaPokémon (1 segundo)">
+        🔄 Atualizar R$ (1s)
+      </button>
+
+      <button id="btnDownloadActiveSet" class="btn btn-primary" title="Baixar todas as fotos e preços desta coleção no PC para usar 100% offline">
+        💾 Salvar Offline
+      </button>
+    </div>
+
+    <!-- ACTIONS -->
+    <div class="topbar-actions">
+      <button id="btnOpenCollectionModal" class="btn btn-collection" title="Abrir Banco de Dados da Minha Coleção e Radar de Valorização (Meta)">
+        💎 Minha Coleção (<span id="myCollectionCountBadge">0</span> • <span id="myCollectionTotalBadge">R$ 0,00</span>)
+      </button>
+      <button id="btnOpenCatalogModal" class="btn btn-outline">
+        📦 Edições (<span id="offlineSetsCount">0</span> offline)
+      </button>
+    </div>
+  </header>
+
+  <!-- DOWNLOAD PROGRESS BANNER -->
+  <div id="downloadBanner" class="download-banner hidden">
+    <div class="download-info">
+      <span class="spinner"></span>
+      <span id="downloadMessage">Baixando coleção...</span>
+    </div>
+    <div class="progress-track">
+      <div id="downloadProgressBar" class="progress-fill" style="width: 0%"></div>
+    </div>
+    <span id="downloadPercent" class="download-percent">0%</span>
+  </div>
+
+  <!-- MAIN WORKSPACE -->
+  <main class="studio-grid">
+    <!-- LEFT COLUMN: FAST NUMBER SEARCH & SET GRID -->
+    <section class="panel search-panel">
+      <div class="number-search-box">
+        <div class="search-header-row">
+          <label for="cardNumberInput">🔢 DIGITE O NÚMERO DA CARTA</label>
+          <span class="shortcut-hint">Atalho: <kbd>/</kbd> foca • <kbd>+</kbd> vídeo • <kbd>C</kbd> minha coleção</span>
+        </div>
+        <div class="number-input-wrapper">
+          <span class="hash-prefix">#</span>
+          <input
+            type="text"
+            id="cardNumberInput"
+            placeholder="Ex: 136 ou 004 ou TG01..."
+            autocomplete="off"
+            autofocus
+          />
+          <span id="officialSetTotal" class="set-total-suffix">/ ---</span>
+          <button id="btnClearSearch" class="btn-icon" title="Limpar busca (Esc)" aria-label="Limpar busca">✕</button>
+        </div>
+        <div class="quick-filter-row">
+          <input
+            type="text"
+            id="cardNameFilter"
+            class="name-filter-input"
+            placeholder="Ou filtre pelo nome do Pokémon (opcional)..."
+            autocomplete="off"
+          />
+          <select id="sortCardsSelect" class="sort-select" aria-label="Ordenar cartas da coleção">
+            <option value="number">Ordenar: Nº da Carta</option>
+            <option value="price-desc">Maior Preço (R$)</option>
+            <option value="price-asc">Menor Preço (R$)</option>
+            <option value="name">Nome (A-Z)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- CARDS THUMBNAIL LIST / GRID -->
+      <div class="cards-list-header">
+        <span id="cardsListCount">0 cartas na coleção</span>
+        <span id="pricesLastSync" class="sync-timestamp"></span>
+      </div>
+      <div id="cardsGrid" class="cards-grid">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+
+    <!-- CENTER COLUMN: ACTIVE CARD SPOTLIGHT & LIGA POKEMON PRICES -->
+    <section class="panel spotlight-panel">
+      <!-- NAVIGATION ARROWS ON PANEL EDGES -->
+      <button id="btnPrevCard" class="panel-nav-arrow panel-nav-prev" title="Carta Anterior (Seta Esquerda)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+
+      <button id="btnNextCard" class="panel-nav-arrow panel-nav-next" title="Próxima Carta (Seta Direita)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </button>
+
+      <div id="emptySpotlight" class="empty-spotlight">
+        <div class="empty-icon">🃏</div>
+        <h2>Pronto para abrir pacotes!</h2>
+        <p>Selecione a coleção no topo e digite o <strong>número da carta</strong> (ex: <code>136</code> + <kbd>Enter</kbd>) para exibir a foto em alta definição e o valor em Reais da <strong>LigaPokémon</strong>.</p>
+      </div>
+
+      <div id="cardSpotlight" class="card-spotlight hidden">
+        <!-- Card Image + 3D Tilt Wrapper -->
+        <div class="spotlight-visual">
+          <div class="card-3d-frame" id="card3dFrame" data-variant="0">
+            <img id="spotlightImage" src="" alt="Carta Pokémon" />
+            <div class="card-foil-pattern"></div>
+            <div class="card-shine"></div>
+            <div class="card-variant-badge hidden" id="cardVariantBadge"></div>
+          </div>
+
+          <div class="spotlight-links-bar">
+            <a id="spotlightLigaLink" href="#" target="_blank" rel="noopener" class="btn btn-sm btn-liga">
+              🔗 Ver na LigaPokémon ↗
+            </a>
+          </div>
+        </div>
+
+        <!-- Card Details & Prices -->
+        <div class="spotlight-details">
+          <div class="spotlight-title-block">
+            <div class="card-number-badge" id="spotlightNumber">#000/000</div>
+            <span class="card-rarity-badge" id="spotlightRarity">Raridade</span>
+            <span class="offline-img-badge hidden" id="spotlightOfflineBadge">⚡ Offline HD</span>
+            <span class="owned-card-badge hidden" id="spotlightOwnedBadge">💎 Na Coleção: 0x</span>
+          </div>
+
+          <h2 id="spotlightNamePt" class="spotlight-name">Nome da Carta</h2>
+          <p id="spotlightNameEn" class="spotlight-subname">English Name • Set Name</p>
+
+          <!-- VARIANT SELECTOR (Normal / Reverse Foil / Foil / Poké Ball / Master Ball) -->
+          <div class="variant-section">
+            <div class="variant-header">
+              <span>VERSÃO / ACABAMENTO:</span>
+              <button id="btnLoadDetailedVariants" class="btn-link">
+                ✨ Buscar preços Reverse / Foil / MasterBall na Liga
+              </button>
+            </div>
+            <div id="variantPillsContainer" class="variant-pills">
+              <button class="variant-pill active" data-variant="0">Normal / Padrão</button>
+            </div>
+          </div>
+
+          <!-- LIGAPOKEMON BRL PRICE CARDS -->
+          <div class="liga-price-board">
+            <div class="board-header">
+              <span class="liga-tag">🇧🇷 COTAÇÃO LIGAPOKÉMON (R$)</span>
+              <span id="activeVariantLabel" class="variant-active-tag">Normal</span>
+            </div>
+
+            <div class="price-boxes">
+              <div class="price-box price-min-box" data-mode="menor">
+                <span class="price-label" id="labelPriceMin">MENOR PREÇO</span>
+                <strong class="price-value" id="priceMinBRL">R$ 0,00</strong>
+                <span class="price-sub" id="subPriceMin">Referência lojistas</span>
+              </div>
+
+              <div class="price-box price-avg-box" data-mode="medio">
+                <span class="price-label" id="labelPriceAvg">PREÇO MÉDIO</span>
+                <strong class="price-value" id="priceAvgBRL">R$ 0,00</strong>
+                <span class="price-sub" id="subPriceAvg">Média da versão</span>
+              </div>
+
+              <div class="price-box price-max-box" data-mode="maior">
+                <span class="price-label" id="labelPriceMax">MAIOR PREÇO</span>
+                <strong class="price-value" id="priceMaxBRL">R$ 0,00</strong>
+                <span class="price-sub" id="subPriceMax">Topo de loja</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ADD TO PACK OPENING SESSION OR PERMANENT COLLECTION -->
+          <div class="add-to-session-bar">
+            <button id="btnAddCardToSession" class="btn btn-add-hit">
+              ➕ Somar no Vídeo <kbd>+</kbd>
+            </button>
+            <button id="btnAddCardToCollection" class="btn btn-add-collection" title="Salvar esta carta no banco de dados permanente da sua coleção (Atalho: tecla C)">
+              💎 Adicionar à Minha Coleção <kbd>C</kbd>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: VIDEO PACK OPENING COUNTER & HITS -->
+    <section class="panel session-panel">
+      <div class="session-header">
+        <div>
+          <h3>🎬 Soma da Abertura</h3>
+          <p class="session-sub">Acumulado das cartas abertas no vídeo</p>
+        </div>
+        <button id="btnClearSession" class="btn btn-sm btn-danger-outline" title="Zerar abertura atual">
+          🗑️ Zerar
+        </button>
+      </div>
+
+      <!-- PACK COUNTER & PRICE MODE -->
+      <div class="session-controls">
+        <div class="pack-counter">
+          <span>Boosters abertos:</span>
+          <div class="counter-btns">
+            <button id="btnPackMinus" class="btn-counter">−</button>
+            <strong id="packsOpenedCount">0</strong>
+            <button id="btnPackPlus" class="btn-counter">+</button>
+          </div>
+        </div>
+
+        <div class="price-mode-selector">
+          <label for="sessionPriceMode">Somar pelo:</label>
+          <select id="sessionPriceMode">
+            <option value="menor">Menor Preço (R$)</option>
+            <option value="medio">Preço Médio (R$)</option>
+            <option value="vendas3m">📊 Média 3 Meses (Vendas Reais)</option>
+            <option value="maior">Maior Preço (R$)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- TOTALS SUMMARY -->
+      <div class="session-totals-card">
+        <div class="total-main">
+          <span>VALOR TOTAL DO VÍDEO</span>
+          <strong id="sessionTotalValue">R$ 0,00</strong>
+        </div>
+        <div class="total-secondary-row">
+          <div>
+            <span>Pelo Menor:</span>
+            <strong id="sessionTotalMin">R$ 0,00</strong>
+          </div>
+          <div>
+            <span>Pelo Médio:</span>
+            <strong id="sessionTotalAvg">R$ 0,00</strong>
+          </div>
+          <div>
+            <span>Cartas:</span>
+            <strong id="sessionCardsCount">0</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLLECTION BRIDGE: AUTO-SAVE & BATCH SAVE -->
+      <div class="session-collection-bridge">
+        <label class="auto-save-toggle" title="Quando marcado, toda carta somada no vídeo (+) também é salva automaticamente no banco de dados da Minha Coleção">
+          <input type="checkbox" id="chkAutoSaveCollection" />
+          <span>Auto-salvar na Coleção ao somar (<kbd>+</kbd>)</span>
+        </label>
+        <button id="btnImportSessionToCollection" class="btn btn-sm btn-collection-outline" title="Salvar todas as cartas desta abertura de vídeo no banco de dados da Minha Coleção">
+          📥 Salvar Tudo na Coleção
+        </button>
+      </div>
+
+      <!-- TOP HIT BANNER -->
+      <div id="topHitBanner" class="top-hit-banner hidden">
+        <span class="trophy">🏆 MAIOR HIT:</span>
+        <strong id="topHitName">---</strong>
+        <span id="topHitPrice" class="top-hit-price">R$ 0,00</span>
+      </div>
+
+      <!-- PULLED CARDS LIST -->
+      <div id="sessionItemsList" class="session-items-list">
+        <!-- Populated by JS -->
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL: CATALOG & OFFLINE BACKUP MANAGER -->
+  <div id="catalogModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="catalogModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h2 id="catalogModalTitle">📦 Selecionar Coleção e Gerenciar Backup Offline</h2>
+          <p>Baixe as coleções para o seu computador para ter fotos HD (TCGdex) + Preços em R$ (LigaPokémon) instantâneos durante os vídeos.</p>
+        </div>
+        <button id="btnCloseCatalogModal" class="btn-icon" aria-label="Fechar gerenciador de coleções">✕</button>
+      </div>
+
+      <div class="modal-toolbar">
+        <input
+          type="text"
+          id="catalogSearchInput"
+          aria-label="Buscar coleção por nome em Português, Inglês ou sigla"
+          placeholder="Buscar coleção por nome em Português, Inglês ou sigla (ex: Fagulhas, 151, Realeza, TEF, SV08)..."
+        />
+        <div class="modal-filter-pills">
+          <button class="filter-pill active" data-filter="all">Todas</button>
+          <button class="filter-pill" data-filter="offline">⚡ Salvas Offline</button>
+          <button class="filter-pill" data-filter="pt">🇧🇷 Com PT-BR</button>
+        </div>
+        <button id="btnRefreshCatalog" class="btn btn-secondary btn-sm">
+          🔄 Atualizar Lista de Coleções
+        </button>
+      </div>
+
+      <div id="catalogListContainer" class="catalog-list">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: MINHA COLEÇÃO & RADAR DE VALORIZAÇÃO (META) -->
+  <div id="collectionModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="collectionModalTitle">
+    <div class="modal-card modal-collection-card">
+      <div class="modal-header collection-modal-header">
+        <div>
+          <h2 id="collectionModalTitle">💎 Minha Coleção — Banco de Dados & Radar do Meta</h2>
+          <p>Suas cartas salvas com rastreamento de preços da LigaPokémon. Descubra cartas de centavos que valorizaram para vários reais com o meta do jogo!</p>
+        </div>
+        <div class="collection-header-actions">
+          <button id="btnSyncCollectionPrices" class="btn btn-collection-sync" title="Consultar a LigaPokémon agora e atualizar o valor de todas as cartas da sua coleção">
+            🔄 Atualizar Todos os Preços na Liga
+          </button>
+          <button id="btnExportCollectionCsv" class="btn btn-outline btn-sm" title="Exportar banco de dados para planilha CSV (Excel)">
+            📊 Exportar CSV
+          </button>
+          <button id="btnCloseCollectionModal" class="btn-icon" aria-label="Fechar minha coleção">✕</button>
+        </div>
+      </div>
+
+      <!-- DASHBOARD FINANCEIRO DA COLEÇÃO -->
+      <div class="collection-dashboard">
+        <div class="col-stat-card col-stat-current">
+          <span class="col-stat-label">VALOR ATUAL DA COLEÇÃO</span>
+          <strong class="col-stat-value" id="colDashCurrentTotal">R$ 0,00</strong>
+          <span class="col-stat-sub" id="colDashTotalCopies">0 cartas únicas • 0 cópias</span>
+        </div>
+
+        <div class="col-stat-card col-stat-initial">
+          <span class="col-stat-label">VALOR QUANDO CADASTROU</span>
+          <strong class="col-stat-value" id="colDashInitialTotal">R$ 0,00</strong>
+          <span class="col-stat-sub">Soma base na data de abertura</span>
+        </div>
+
+        <div class="col-stat-card col-stat-profit">
+          <span class="col-stat-label">VALORIZAÇÃO / LUCRO ACUMULADO</span>
+          <div class="col-profit-row">
+            <strong class="col-stat-value" id="colDashProfitValue">R$ 0,00</strong>
+            <span class="col-profit-pill" id="colDashProfitPercent">0%</span>
+          </div>
+          <span class="col-stat-sub" id="colDashLastSync">Última atualização: ---</span>
+        </div>
+
+        <div class="col-stat-card col-stat-meta">
+          <span class="col-stat-label">🔥 RADAR DO META (SUBIRAM)</span>
+          <strong class="col-stat-value" id="colDashGainersCount">0 cartas</strong>
+          <span class="col-stat-sub" id="colDashTopGainer">Maior alta: ---</span>
+        </div>
+      </div>
+
+      <!-- SYNC ALERT BANNER INSIDE MODAL -->
+      <div id="collectionSyncAlert" class="collection-sync-alert hidden"></div>
+
+      <!-- TOOLBAR & FILTROS DO RADAR + FILTROS ESTILO POKÉMON TCG LIVE -->
+      <div class="collection-toolbar">
+        <div class="collection-tabs">
+          <button class="col-tab-btn active" data-col-tab="all">
+            📚 Todas (<span id="colTabCountAll">0</span>)
+          </button>
+          <button class="col-tab-btn col-tab-gainers" data-col-tab="gainers" title="Cartas que subiram de preço em relação ao dia em que você abriu/cadastrou">
+            🚀 Valorizaram / Subiram (<span id="colTabCountGainers">0</span>)
+          </button>
+          <button class="col-tab-btn col-tab-meta" data-col-tab="meta-jump" title="Cartas que subiram e hoje valem R$ 2,00 ou mais (Ex: cartas de centavos que viraram reais no meta)">
+            🔥 Destaques do Meta R$ 2+ (<span id="colTabCountMeta">0</span>)
+          </button>
+          <button class="col-tab-btn" data-col-tab="dupes" title="Cartas que você possui 2 ou mais cópias">
+            🔄 Repetidas 2x+ (<span id="colTabCountDupes">0</span>)
+          </button>
+        </div>
+
+        <!-- FILTROS INSPIRADOS NO POKÉMON TCG LIVE (CATEGORIA DE CARTA + TIPO DE ENERGIA) -->
+        <div class="tcglive-filters-panel">
+          <details class="tcglive-filters-details" open>
+            <summary class="tcglive-filters-summary">🎛️ Filtros Avançados (Categoria e Energia)</summary>
+            <div class="tcglive-filter-group">
+              <span class="tcglive-filter-label">🃏 CATEGORIA:</span>
+              <div class="tcglive-pills-row" id="collectionCategoryPills">
+                <button class="tcglive-cat-pill active" data-col-cat="all">Todas</button>
+                <button class="tcglive-cat-pill" data-col-cat="pokemon">🐾 Pokémon</button>
+                <button class="tcglive-cat-pill" data-col-cat="trainer">🎒 Treinador (Todos)</button>
+                <button class="tcglive-cat-pill" data-col-cat="item" title="Cartas de Treinador — Item">📦 Item</button>
+                <button class="tcglive-cat-pill" data-col-cat="supporter" title="Cartas de Treinador — Apoiador (Supporter)">🧑‍🎤 Apoiador</button>
+                <button class="tcglive-cat-pill" data-col-cat="tool" title="Cartas de Treinador — Ferramenta Pokémon (Tool)">🛠️ Ferramenta</button>
+                <button class="tcglive-cat-pill" data-col-cat="stadium" title="Cartas de Treinador — Estádio (Stadium)">🏟️ Estádio</button>
+                <button class="tcglive-cat-pill" data-col-cat="energy" title="Cartas de Energia Básica e Especial">🔋 Energia</button>
+              </div>
+            </div>
+
+            <div class="tcglive-filter-group">
+              <span class="tcglive-filter-label">⚡ ENERGIA / TIPO:</span>
+              <div class="tcglive-pills-row" id="collectionElementPills">
+                <button class="tcglive-type-pill active" data-col-elem="all">Todos</button>
+                <button class="tcglive-type-pill type-pill-G" data-col-elem="G" title="Planta / Grama (Grass)">🌿 Planta</button>
+                <button class="tcglive-type-pill type-pill-R" data-col-elem="R" title="Fogo (Fire)">🔥 Fogo</button>
+                <button class="tcglive-type-pill type-pill-W" data-col-elem="W" title="Água (Water)">💧 Água</button>
+                <button class="tcglive-type-pill type-pill-L" data-col-elem="L" title="Elétrico / Raios (Lightning)">⚡ Elétrico</button>
+                <button class="tcglive-type-pill type-pill-P" data-col-elem="P" title="Psíquico (Psychic)">🔮 Psíquico</button>
+                <button class="tcglive-type-pill type-pill-F" data-col-elem="F" title="Luta / Lutador (Fighting)">✊ Luta</button>
+                <button class="tcglive-type-pill type-pill-D" data-col-elem="D" title="Escuridão / Noturno (Darkness)">🌑 Escuridão</button>
+                <button class="tcglive-type-pill type-pill-M" data-col-elem="M" title="Metal / Aço (Metal)">⚙️ Metal</button>
+                <button class="tcglive-type-pill type-pill-N" data-col-elem="N" title="Dragão (Dragon)">🐉 Dragão</button>
+                <button class="tcglive-type-pill type-pill-Y" data-col-elem="Y" title="Fada (Fairy)">✨ Fada</button>
+                <button class="tcglive-type-pill type-pill-C" data-col-elem="C" title="Normal (Incolor / Colorless)">⭐ Normal</button>
+              </div>
+            </div>
+          </details>
+        </div>
+
+        <div class="collection-filters-row">
+          <input
+            type="text"
+            id="collectionSearchInput"
+            aria-label="Buscar na sua coleção por nome, número, raridade ou sigla da edição"
+            placeholder="Buscar na sua coleção por nome, #número, raridade ou sigla da edição..."
+          />
+
+          <select id="collectionSetFilter" class="sort-select" aria-label="Filtrar minha coleção por edição">
+            <option value="all">Todas as Edições</option>
+          </select>
+
+          <select id="collectionPriceMode" class="sort-select" aria-label="Modo de cotação de preço" title="Qual referência de preço usar para calcular o valor e a valorização">
+            <option value="menor">Cotação: Menor Preço (Liga)</option>
+            <option value="medio">Cotação: Preço Médio (Liga)</option>
+            <option value="vendas3m">Cotação: Média 3 Meses</option>
+            <option value="maior">Cotação: Maior Preço (Liga)</option>
+          </select>
+
+          <select id="collectionSortSelect" class="sort-select" aria-label="Ordenar cartas da minha coleção">
+            <option value="gain-brl-desc">Ordenar: Maior Alta em R$ (+R$)</option>
+            <option value="gain-pct-desc">Ordenar: Maior Alta em % (+%)</option>
+            <option value="price-desc">Maior Preço Unitário (R$)</option>
+            <option value="total-desc">Maior Valor Total (Qtd × R$)</option>
+            <option value="recent">Adicionadas Recentemente</option>
+            <option value="qty-desc">Maior Quantidade</option>
+            <option value="name-asc">Nome (A-Z)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- LISTA DE CARTAS DA COLEÇÃO -->
+      <div id="collectionListContainer" class="collection-list-container">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIRMAÇÃO ESTILIZADO -->
+  <div id="confirmModal" class="modal-backdrop confirm-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle" aria-describedby="confirmModalMessage">
+    <div class="confirm-modal-card">
+      <div class="confirm-modal-body">
+        <div class="confirm-modal-icon" id="confirmModalIcon">🗑️</div>
+        <h3 id="confirmModalTitle">Confirmar ação</h3>
+        <p id="confirmModalMessage">Tem certeza que deseja continuar?</p>
+      </div>
+      <div class="confirm-modal-actions">
+        <button id="btnConfirmCancel" class="btn btn-outline" type="button">Cancelar</button>
+        <button id="btnConfirmAccept" class="btn btn-danger" type="button">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js?v=8"></script>
+</body>
+</html>

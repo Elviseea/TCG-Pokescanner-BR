@@ -1,0 +1,21 @@
+{
+  "name": "pokescanner-br",
+  "version": "1.0.0",
+  "description": "Sistema de Consulta Rápida Pokémon TCG (TCGdex HD + Preços LigaPokémon R$), Gestão de Coleção, Radar do Meta e Backup Offline",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "pokemon",
+    "pokemon-tcg",
+    "ligapokemon",
+    "tcgdex",
+    "scanner",
+    "collection"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT"
+}
