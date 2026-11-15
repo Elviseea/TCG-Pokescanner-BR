@@ -35,7 +35,7 @@ Basta dar dois cliques no arquivo:
 ```bat
 Iniciar_PokemonTCG.bat
 ```
-Ele iniciará o servidor em segundo plano e abrirá automaticamente `http://localhost:3000` no seu navegador.
+Ele iniciará o servidor em segundo plano e abrirá automaticamente `http://127.0.0.1:3001` no seu navegador.
 
 ### Opção 2: Pelo Terminal
 ```bash
@@ -43,7 +43,7 @@ npm start
 # ou diretamente:
 node server.js
 ```
-Em seguida, acesse no navegador: **[http://localhost:3000](http://localhost:3000)**
+Em seguida, acesse no navegador: **[http://127.0.0.1:3001](http://127.0.0.1:3001)** (ou `http://localhost:3001`)
 
 ---
 
